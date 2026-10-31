@@ -1,47 +1,60 @@
 import java.util.ArrayList;
-import java.util.Set;
 import java.util.HashSet;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Set;
 
+/* CompliantNode refers to a node that follows the rules (not malicious)*/
 public class CompliantNode implements Node {
 
-    private boolean[] followees;
+    private final int numRounds;
+    private int proposalCalls;
     private Set<Transaction> pendingTransactions;
-    private Map<Integer, Integer> votes;
-    private int round;
-    private int numRounds;
+    private Set<Transaction> finalTransactions;
+    private boolean[] followees;
 
     public CompliantNode(double p_graph, double p_malicious, double p_txDistribution, int numRounds) {
         this.numRounds = numRounds;
-        this.round = 0;
-        this.pendingTransactions = new HashSet<>();
-        this.votes = new HashMap<>();
+        this.proposalCalls = 0;
+        this.pendingTransactions = new HashSet<Transaction>();
+        this.finalTransactions = new HashSet<Transaction>();
+        this.followees = new boolean[0];
     }
 
     public void setFollowees(boolean[] followees) {
-        this.followees = followees;
+        this.followees = followees.clone();
     }
 
     public void setPendingTransaction(Set<Transaction> pendingTransactions) {
-        this.pendingTransactions.addAll(pendingTransactions);
+        this.pendingTransactions = new HashSet<Transaction>(pendingTransactions);
     }
 
     public Set<Transaction> getProposals() {
-        round++;
+        if (proposalCalls >= numRounds) {
+            finalTransactions = new HashSet<Transaction>(pendingTransactions);
+            return new HashSet<Transaction>(finalTransactions);
+        }
 
-        return new HashSet<>(pendingTransactions);
+        proposalCalls++;
+        return new HashSet<Transaction>(pendingTransactions);
     }
 
     public void receiveCandidates(ArrayList<Integer[]> candidates) {
+        if (candidates == null) {
+            return;
+        }
 
         for (Integer[] candidate : candidates) {
-            int txID = candidate[0];
-            int senderID = candidate[1];
-
-            if (followees[senderID]) {
-                votes.put(txID, votes.getOrDefault(txID, 0) + 1);
+            if (candidate == null || candidate.length < 2 || candidate[0] == null || candidate[1] == null) {
+                continue;
             }
+
+            int sender = candidate[1];
+            if (sender >= 0 && sender < followees.length && followees[sender]) {
+                pendingTransactions.add(new Transaction(candidate[0]));
+            }
+        }
+
+        if (proposalCalls >= numRounds) {
+            finalTransactions = new HashSet<Transaction>(pendingTransactions);
         }
     }
 }
